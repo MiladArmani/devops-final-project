@@ -1,0 +1,33 @@
+name: Mirror images to GHCR
+
+on:
+  workflow_dispatch:
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Mirror images
+        run: |
+          set -e
+          owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          images="
+          quay.io/kiwigrid/k8s-sidecar:2.11.0
+          docker.io/grafana/grafana:13.2.1-distroless
+          quay.io/prometheus-operator/prometheus-operator:v0.93.1
+          quay.io/prometheus/node-exporter:v1.12.1-distroless
+          registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.20.0
+          "
+          for img in $images; do
+            path=$(echo "$img" | sed -E 's#^[^/]+/##')
+            target="ghcr.io/$owner/mirror/$path"
+            docker pull "$img"
+            docker tag "$img" "$target"
+            docker push "$target"
+          done
