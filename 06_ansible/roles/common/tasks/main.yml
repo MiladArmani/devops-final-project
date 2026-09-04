@@ -1,0 +1,25 @@
+---
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Upgrade all packages
+  apt:
+    upgrade: dist
+
+- name: Ensure deploy user has sudo group
+  user:
+    name: deploy
+    groups: sudo
+    append: yes
+    shell: /bin/bash
+
+- name: Install common utilities
+  apt:
+    name:
+      - curl
+      - git
+      - unzip
+      - vim
+    state: present
