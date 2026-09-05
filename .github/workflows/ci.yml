@@ -1,0 +1,40 @@
+name: CI - Build and Push App Image
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '04_application/**'
+      - '.github/workflows/ci.yml'
+  workflow_dispatch:
+
+jobs:
+  build-test-push:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t myapp:test ./04_application
+
+      - name: Test image
+        run: |
+          docker run -d -p 5000:5000 --name myapp-test myapp:test
+          sleep 3
+          curl -f http://localhost:5000/health
+          docker rm -f myapp-test
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Tag and push image
+        run: |
+          owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          docker tag myapp:test ghcr.io/$owner/myapp:${{ github.sha }}
+          docker tag myapp:test ghcr.io/$owner/myapp:latest
+          docker push ghcr.io/$owner/myapp:${{ github.sha }}
+          docker push ghcr.io/$owner/myapp:latest
